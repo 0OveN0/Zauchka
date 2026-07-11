@@ -1,0 +1,133 @@
+{% extends "main/base.html" %}
+
+{% block title %}Zauchka.RU{% endblock %}
+
+{% block content %}
+<section class="panel filters-panel">
+    <form method="GET" class="filters">
+        <input type="search" name="q" placeholder="Поиск по названию, описанию, типу или служебному номеру" value="{{ request.GET.q }}" aria-label="Поиск" class="search-input">
+        <select name="listing_type" aria-label="Тип">
+            <option value="">Все типы</option>
+            <option value="olympiad" {% if request.GET.listing_type == "olympiad" %}selected{% endif %}>Олимпиада</option>
+            <option value="grant" {% if request.GET.listing_type == "grant" %}selected{% endif %}>Грант</option>
+        </select>
+        <select name="target" aria-label="Аудитория">
+            <option value="">Все аудитории</option>
+            <option value="school" {% if request.GET.target == "school" %}selected{% endif %}>Школьник</option>
+            <option value="student" {% if request.GET.target == "student" %}selected{% endif %}>Студент</option>
+        </select>
+        <input type="number" name="grade" placeholder="Класс" value="{{ request.GET.grade }}" aria-label="Класс">
+        <select name="stage" aria-label="Этап">
+            <option value="">Все уровни</option>
+            <option value="municipal" {% if request.GET.stage == "municipal" %}selected{% endif %}>Муниципальный</option>
+            <option value="regional" {% if request.GET.stage == "regional" %}selected{% endif %}>Региональный</option>
+            <option value="all_russia" {% if request.GET.stage == "all_russia" %}selected{% endif %}>Всероссийский</option>
+        </select>
+        <select name="format" aria-label="Формат">
+            <option value="">Любой формат</option>
+            <option value="online" {% if request.GET.format == "online" %}selected{% endif %}>Онлайн</option>
+            <option value="offline" {% if request.GET.format == "offline" %}selected{% endif %}>Очно</option>
+        </select>
+        <input type="text" name="region" list="russian_regions" placeholder="Регион" value="{{ request.GET.region }}" aria-label="Регион">
+        <select name="sort" aria-label="Сортировка">
+            <option value="">Сначала новые</option>
+            <option value="name" {% if request.GET.sort == "name" %}selected{% endif %}>По названию</option>
+            <option value="deadline" {% if request.GET.sort == "deadline" %}selected{% endif %}>По дедлайну</option>
+            <option value="favorites" {% if request.GET.sort == "favorites" %}selected{% endif %}>Сначала избранные</option>
+        </select>
+        <button type="submit">Найти</button>
+    </form>
+    <datalist id="russian_regions">
+        {% for region in russian_regions %}<option value="{{ region }}">{% endfor %}
+    </datalist>
+</section>
+
+<section class="list-section">
+    <div class="section-head">
+        <h2 class="section-title">Активные олимпиады</h2>
+        <span class="count">{{ active|length }}</span>
+    </div>
+    <div class="olympiad-grid">
+        {% for o in active %}
+        <article class="olympiad-card compact-card">
+            <div class="card-actions">
+                {% if request.user.is_authenticated %}<form method="POST" action="{% url 'toggle_favorite' o.pk %}" class="favorite-form">{% csrf_token %}<button type="submit" class="favorite-btn {% if o.is_favorite %}active{% endif %}" title="Избранное"><span></span></button></form>{% endif %}
+                <a href="{% url 'olympiad_detail' o.pk %}" class="details-link" title="Открыть">Открыть</a>
+            </div>
+            <a href="{% url 'olympiad_detail' o.pk %}" class="card-main-link">
+            <div class="cover">
+                {% if o.cover_image %}<img src="{{ o.cover_image.url }}" alt="{{ o.title }}">{% endif %}<span class="cover-title">{{ o.title }}</span>
+            </div>
+            <div class="card-top">
+                {% if is_real_admin %}<span class="tag code-tag">{{ o.public_code }}</span>{% endif %}
+                <span class="muted small-text">{{ o.get_listing_type_display }}</span>
+            </div>
+            <h3 class="searchable-text">{{ o.title }}</h3>
+            <p class="muted excerpt searchable-text">{% if o.short_description %}{{ o.short_description|truncatechars:140 }}{% elif o.description %}{{ o.description|truncatechars:140 }}{% else %}Краткая информация пока не добавлена.{% endif %}</p>
+            <div class="mini-meta">
+                <span>Уровень: <strong>{{ o.get_stage_display }}</strong></span>
+                {% if o.organizer %}<span>От кого: <strong>{{ o.organizer }}</strong></span>{% endif %}
+                {% if o.grade %}<span>Класс: <strong>{{ o.grade }}</strong></span>{% endif %}
+                <span>Регион: <strong>{{ o.region }}</strong></span>
+                <span>До: <strong>{{ o.end_date }}</strong></span>
+            </div>
+            </a>
+        </article>
+        {% empty %}
+        <div class="panel empty-state"><p class="muted">Активных олимпиад пока нет.</p></div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="list-section">
+    <details>
+        <summary><span>Архив</span><span class="count">{{ archive|length }}</span></summary>
+        <div class="olympiad-grid archive-list">
+            {% for o in archive %}
+            <article class="olympiad-card compact-card is-archive"><div class="card-actions">{% if request.user.is_authenticated %}<form method="POST" action="{% url 'toggle_favorite' o.pk %}" class="favorite-form">{% csrf_token %}<button type="submit" class="favorite-btn {% if o.is_favorite %}active{% endif %}" title="Избранное"><span></span></button></form>{% endif %}<a href="{% url 'olympiad_detail' o.pk %}" class="details-link" title="Открыть">Открыть</a></div><a href="{% url 'olympiad_detail' o.pk %}" class="card-main-link"><h3>{% if is_real_admin %}<span class="code-muted">{{ o.public_code }}</span> · {% endif %}{{ o.title }}</h3><p class="muted">{{ o.get_listing_type_display }} · {{ o.region }} · {{ o.start_date }} — {{ o.end_date }}</p></a></article>
+            {% empty %}<p class="muted">Архив пуст.</p>{% endfor %}
+        </div>
+    </details>
+</section>
+
+<style>
+    .filters-panel { margin-bottom: 20px; }
+    .filters { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px; align-items: center; }
+    .filters .search-input { grid-column: span 4; min-width: 260px; }
+    .filters select, .filters input[type='text'], .filters input[type='number'] { grid-column: span 2; }
+    .filters button { grid-column: span 2; }
+    .filters select, .filters input, .filters button { min-width: 0; height: 48px; }
+    .filters select { width: 100%; font-size: 0.88rem; padding-right: 36px; overflow: visible; text-overflow: ellipsis; }
+    .section-head, summary { display: flex; align-items: center; gap: 12px; margin: 26px 0 14px; }
+    summary { cursor: pointer; font-size: 1.3rem; font-weight: 900; letter-spacing: -0.03em; }
+    .count, .tag { display: inline-flex; align-items: center; justify-content: center; padding: 6px 10px; border-radius: 999px; background: rgba(34,158,217,0.12); color: var(--app-primary); font-weight: 900; font-size: 0.82rem; white-space: nowrap; }
+    .olympiad-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .compact-card { position:relative; display: flex; flex-direction: column; gap: 12px; min-height: 330px; padding: 16px; color: var(--app-text); } .card-main-link{display:flex;flex-direction:column;gap:12px;color:inherit;text-decoration:none;min-height:100%;}.card-main-link:hover{text-decoration:none}.card-actions{position:absolute;right:12px;top:12px;z-index:5;display:flex;gap:6px}.favorite-form{margin:0}.favorite-btn{width:34px;height:34px;min-height:34px;border-radius:7px;padding:0;display:grid;place-items:center;background:rgba(255,255,255,.54);color:var(--app-muted);box-shadow:none;border:2px solid rgba(0,0,0,.18);font-weight:900;text-decoration:none;image-rendering:pixelated}.favorite-btn span{width:14px;height:14px;background:currentColor;clip-path:polygon(50% 88%,8% 48%,8% 22%,22% 8%,42% 8%,50% 18%,58% 8%,78% 8%,92% 22%,92% 48%)}.details-link{min-height:34px;border-radius:999px;padding:0 10px;display:grid;place-items:center;background:rgba(255,255,255,.72);color:var(--app-muted);box-shadow:none;border:1px solid var(--app-border);font-weight:900;text-decoration:none;font-size:.78rem}.favorite-btn.active{color:#ef4444;background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.38)}.details-link:hover{color:var(--app-danger);background:rgba(224,36,94,.10);text-decoration:none}
+    .compact-card:hover { text-decoration: none; transform: translateY(-2px); }
+    .cover { position:relative;height: 120px; border-radius: 20px; overflow: hidden; display: grid; place-items: center; background: linear-gradient(135deg, rgba(34,158,217,0.16), rgba(255,255,255,0.40)); color: var(--app-primary); font-weight: 900; text-align: center; }
+    .cover img { position:absolute;inset:0;width:100%;height:100%;object-fit:cover; }
+    .cover::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent,rgba(0,0,0,.42));}
+    .cover-title{position:relative;z-index:1;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.45);padding:12px;align-self:end;font-size:.95rem;line-height:1.15}.code-tag,.code-muted{opacity:.28;font-size:.68rem;font-weight:700;background:transparent;color:var(--app-muted);padding:0}
+    .compact-card h3 { margin: 0; font-size: 1.16rem; line-height: 1.18; letter-spacing: -0.03em; }
+    .card-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .small-text { font-size: 0.86rem; text-align: right; }
+    .excerpt { margin: 0; line-height: 1.5; }
+    .mini-meta { display: grid; gap: 6px; color: var(--app-muted); font-size: 0.88rem; margin-top: auto; }
+    .mini-meta strong { color: var(--app-text); }
+    .is-archive { opacity: 0.78; }
+    mark { background: rgba(255, 221, 87, .45); color: inherit; border-radius: 4px; padding: 0 2px; }
+    @media (max-width:1180px){.olympiad-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+    @media (max-width:980px){.filters{grid-template-columns:repeat(6,minmax(0,1fr));}.filters .search-input{grid-column:span 6}.filters select,.filters input[type='text'],.filters input[type='number'],.filters button{grid-column:span 3}}@media (max-width:680px){.olympiad-grid,.filters{grid-template-columns:1fr;}.filters .search-input,.filters select,.filters input[type='text'],.filters input[type='number'],.filters button{grid-column:auto;min-width:0}.cookie-banner{align-items:flex-start;flex-direction:column; bottom:96px;}}
+</style>
+<script>
+    document.addEventListener('DOMContentLoaded', function(){
+        var q = "{{ search_query|default:''|escapejs }}";
+        if(!q || q.length < 2) return;
+        var escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        var re = new RegExp('(' + escaped + ')', 'ig');
+        document.querySelectorAll('.searchable-text').forEach(function(el){
+            el.innerHTML = el.textContent.replace(re, '<mark>$1</mark>');
+        });
+    });
+</script>
+{% endblock %}

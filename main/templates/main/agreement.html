@@ -1,0 +1,48 @@
+{% extends "main/base.html" %}
+
+{% block title %}Пользовательское соглашение — Zauchka.RU{% endblock %}
+
+{% block content %}
+<section class="panel doc-page">
+    <h1>Пользовательское соглашение</h1>
+
+    <div class="doc-body">
+        {% autoescape off %}{{ rules_content }}{% endautoescape %}
+    </div>
+
+    <div class="doc-back" style="margin-top: 30px;">
+        <a href="{{ next_url|default:'/' }}" class="btn secondary btn-sm">← Вернуться назад</a>
+    </div>
+</section>
+
+<style>
+    .doc-page h1 {
+        margin: 0 0 20px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid var(--app-primary);
+    }
+    .doc-body h2 {
+        margin: 28px 0 12px;
+        font-size: 1.3rem;
+    }
+    .doc-body p {
+        margin-bottom: 14px;
+        line-height: 1.65;
+        text-align: justify;
+    }
+    .doc-body ul {
+        margin-bottom: 14px;
+        padding-left: 22px;
+    }
+    .doc-body li {
+        margin-bottom: 8px;
+        line-height: 1.55;
+    }
+    .doc-body code {
+        background: rgba(34, 158, 217, 0.08);
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-size: 0.9em;
+    }
+</style>
+{% endblock %}

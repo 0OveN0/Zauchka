@@ -1,0 +1,28 @@
+{% extends "main/base.html" %}
+
+{% block title %}Редактирование профиля{% endblock %}
+
+{% block content %}
+<section class="edit-profile-wrap">
+    <a href="{% url 'profile' request.user.pk %}" class="btn secondary">Назад в профиль</a>
+    <div class="card edit-card">
+        <h1>Настройки профиля</h1>
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="photo-row">
+                <div class="big-avatar avatar-wrap">{% if request.user.profile.photo %}<img src="{{ request.user.profile.photo.url }}" alt="Фото">{% else %}<span>{{ request.user.username|first|upper }}</span>{% endif %}{% if request.user.profile.is_online %}<i class="online-dot"></i>{% endif %}</div>
+                <div><label>Фотография</label><p class="muted">Лучше загрузить квадратное изображение.</p>{% if request.user.profile.can_upload_photo %}<input type="file" name="photo" accept="image/*">{% else %}<p class="muted">Администратор запретил изменение фото профиля.</p>{% endif %}</div>
+            </div>
+            {% if request.user.profile.can_change_username %}<div class="form-group"><label for="username">Имя аккаунта</label><input type="text" name="username" id="username" value="{{ request.user.username }}"></div>{% else %}<p class="muted">Администратор запретил изменение имени аккаунта.</p>{% endif %}<div class="form-group"><label for="bio">О себе</label><textarea name="bio" id="bio" placeholder="Расскажите немного о себе...">{{ request.user.profile.bio }}</textarea></div>
+            <div class="form-group"><label for="region">Регион проживания</label><input type="text" name="region" id="region" list="russian_regions" placeholder="Начните вводить регион России" value="{{ request.user.profile.region }}"><datalist id="russian_regions">{% for region in russian_regions %}<option value="{{ region }}">{% endfor %}</datalist></div>
+            <label class="check-row"><input type="checkbox" name="show_region" {% if request.user.profile.show_region %}checked{% endif %}>Показывать регион другим пользователям</label>
+            <label class="check-row"><input type="checkbox" name="show_last_login" {% if request.user.profile.show_last_login %}checked{% endif %}>Показывать последний онлайн всем</label>
+            <label class="check-row"><input type="checkbox" name="show_online_status" {% if request.user.profile.show_online_status %}checked{% endif %}>Показывать зелёную точку онлайн-статуса</label>
+            <button type="submit">Сохранить изменения</button>
+        </form>
+    </div>
+</section>
+<style>
+    .edit-profile-wrap{max-width:760px;margin:0 auto;display:grid;gap:16px}.edit-card h1{margin-top:0;letter-spacing:-.05em}.photo-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:22px;align-items:center;margin:20px 0 28px;padding:18px;border-radius:24px;border:1px solid var(--app-border);background:rgba(255,255,255,.45)}.big-avatar{width:150px;height:150px;border-radius:38px;overflow:hidden;background:rgba(34,158,217,.12);font-size:3.6rem}.big-avatar img{width:100%;height:100%;object-fit:cover}.big-avatar .online-dot{width:16px;height:16px;right:8px;bottom:8px}form{display:grid;gap:14px}@media(max-width:620px){.photo-row{grid-template-columns:1fr}.big-avatar{width:128px;height:128px}}
+</style>
+{% endblock %}

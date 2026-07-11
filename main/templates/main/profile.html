@@ -1,0 +1,54 @@
+{% extends "main/base.html" %}
+
+{% block title %}Профиль {{ u.username }}{% endblock %}
+
+{% block content %}
+<section class="profile-shell">
+    <div class="profile-hero card">
+        <div class="profile-glow"></div>
+        <div class="profile-avatar avatar-wrap">
+            {% if profile.photo %}<img src="{{ profile.photo.url }}" alt="{{ u.username }}">{% else %}<span>{{ u.username|first|upper }}</span>{% endif %}
+            {% if profile.show_online_status or is_owner %}{% if profile.is_online %}<i class="online-dot"></i>{% endif %}{% endif %}
+        </div>
+        <div class="profile-data">
+            <div class="profile-name-row">
+                <h1>{{ u.username }}</h1>
+                
+            </div>
+            {% if profile.bio %}<p class="bio">{{ profile.bio }}</p>{% else %}<p class="bio muted">Пока ничего не рассказал о себе</p>{% endif %}
+            <div class="profile-meta">
+                {% if is_owner or profile.show_region %}<span>Регион: {{ profile.region|default:"Не указан" }}</span>{% endif %}
+                <span>Регистрация: {{ u.date_joined|date:"d.m.Y" }}</span>
+                {% if is_owner or profile.show_last_login %}<span>Последний онлайн: {% if profile.last_seen %}{{ profile.last_seen|date:"d.m.Y H:i" }}{% else %}не было{% endif %}</span>{% endif %}
+            </div>
+            <div class="profile-actions">
+                <a href="{% url 'index' %}" class="btn secondary">На главную</a>
+                <a href="{% url 'index' %}?sort=favorites" class="favorite-profile-link"><span class="profile-heart"></span><strong>Избранное</strong>{% if favorite_count %}<em>{{ favorite_count }}</em>{% endif %}</a>
+                {% if is_owner %}<a href="{% url 'edit_profile' %}" class="btn">Редактировать профиль</a>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if comments %}
+    <div class="panel comments-panel">
+        <div class="section-head"><h2 class="section-title">Комментарии</h2><span class="count">{{ comments|length }}</span></div>
+        {% for c in comments %}
+        <article class="comment-item {% if not forloop.first %}hidden-comment{% endif %}">
+            <div class="comment-meta"><a href="{% url 'olympiad_detail' c.olympiad.pk %}">{{ c.olympiad.title }}</a><span>{{ c.created_at|date:"d.m.Y H:i" }}</span>{% if not c.is_approved %}<span class="pending-badge">На проверке</span>{% endif %}</div>
+            {% if c.is_deleted %}<p class="muted">Комментарий удалён администратором{% if c.deleted_by %}: {{ c.deleted_by.username }}{% endif %}{% if c.delete_reason %}. Причина: {{ c.delete_reason }}{% endif %}</p>{% else %}<p>{{ c.text }}</p>{% if is_owner %}<form method="POST" action="{% url 'delete_comment' c.id %}">{% csrf_token %}<button type="submit" class="btn danger btn-sm">Удалить</button></form>{% endif %}{% endif %}
+        </article>
+        {% endfor %}
+        {% if comments|length > 1 %}<button type="button" class="comments-arrow" id="showAllComments" aria-label="Показать остальные комментарии">⌄</button>{% endif %}
+    </div>
+    {% elif is_owner %}
+    <div class="panel"><p class="muted">Вы ещё не оставляли комментариев.</p></div>
+    {% endif %}
+</section>
+
+<style>
+    .profile-shell{display:grid;gap:18px}.profile-hero{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);gap:28px;align-items:center;padding:34px;overflow:hidden}.profile-glow{position:absolute;inset:-40%;background:radial-gradient(circle at 18% 12%,rgba(34,158,217,.28),transparent 28%),radial-gradient(circle at 82% 80%,rgba(255,255,255,.42),transparent 32%);filter:blur(4px);z-index:0}.profile-avatar{width:168px;height:168px;border-radius:42px;overflow:hidden;background:rgba(34,158,217,.12);box-shadow:0 26px 60px rgba(15,23,42,.16);font-size:4rem}.profile-avatar img{width:100%;height:100%;object-fit:cover}.profile-avatar .online-dot{width:18px;height:18px;right:10px;bottom:10px}.profile-data{position:relative;z-index:1}.profile-name-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.profile-data h1{margin:0;font-size:clamp(2rem,5vw,3.3rem);letter-spacing:-.07em}.bio{max-width:760px;font-size:1.05rem;line-height:1.55}.profile-meta{display:flex;gap:10px;flex-wrap:wrap;color:var(--app-muted);font-weight:700}.profile-meta span{padding:8px 10px;border-radius:999px;background:rgba(255,255,255,.48);border:1px solid var(--app-border)}.profile-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.status{display:inline-flex;padding:6px 10px;border-radius:999px;font-weight:900;font-size:.82rem}.online-status{background:rgba(34,197,94,.14);color:#15803d}.offline-status{background:rgba(100,116,139,.12);color:var(--app-muted)}.section-head{display:flex;align-items:center;gap:10px}.count{display:grid;place-items:center;min-width:28px;height:28px;border-radius:999px;background:rgba(34,158,217,.12);color:var(--app-primary);font-weight:900}.comment-item{padding:16px;border:1px solid var(--app-border);border-radius:20px;background:rgba(255,255,255,.48);margin-top:12px}.comment-item p{margin:10px 0;line-height:1.5}.comment-meta{display:flex;gap:10px;flex-wrap:wrap;color:var(--app-muted);font-size:.88rem}.comment-meta a{font-weight:900}.pending-badge{color:#b45309}.hidden-comment{display:none}.hidden-comment.visible{display:block}.comments-arrow{display:grid;place-items:center;margin:16px auto 0;width:46px;height:46px;min-height:46px;border-radius:999px;background:rgba(255,255,255,.42);color:var(--app-primary);font-size:1.7rem;line-height:1;box-shadow:none;border:1px solid var(--app-border)}.comments-arrow:hover{background:var(--app-primary);color:#fff;transform:translateY(1px)}@media(max-width:680px){.profile-hero{grid-template-columns:1fr;text-align:left}.profile-avatar{width:132px;height:132px;border-radius:34px}}
+.favorite-profile-link{display:inline-flex;align-items:center;gap:9px;min-height:44px;padding:10px 14px;border-radius:16px;background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(255,255,255,.36));border:1px solid rgba(239,68,68,.22);color:var(--app-text);font-weight:900;text-decoration:none;box-shadow:none}.favorite-profile-link:hover{text-decoration:none;background:linear-gradient(135deg,rgba(239,68,68,.18),rgba(255,255,255,.50));transform:translateY(-1px)}.profile-heart{width:15px;height:15px;background:#ef4444;clip-path:polygon(50% 88%,8% 48%,8% 22%,22% 8%,42% 8%,50% 18%,58% 8%,78% 8%,92% 22%,92% 48%);image-rendering:pixelated}.favorite-profile-link em{font-style:normal;display:grid;place-items:center;min-width:24px;height:24px;padding:0 6px;border-radius:999px;background:#ef4444;color:white;font-size:.78rem}</style>
+<script>
+    document.addEventListener('DOMContentLoaded',function(){var btn=document.getElementById('showAllComments');if(btn){btn.addEventListener('click',function(){document.querySelectorAll('.hidden-comment').forEach(function(el){el.classList.add('visible')});btn.remove();});}});
+</script>
+{% endblock %}

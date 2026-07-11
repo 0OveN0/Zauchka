@@ -1,0 +1,278 @@
+{% extends "main/base.html" %}
+
+{% block title %}Админ-панель — {{ site_name }}{% endblock %}
+{% block support_widget %}{% endblock %}
+
+{% block content %}
+<section class="admin-layout">
+    <aside class="admin-sidebar panel">
+        <h1>Админ</h1>
+        <nav class="admin-tabs">
+            <a href="?tab=active" class="{% if tab == 'active' %}active{% endif %}">Активные</a>
+            <a href="?tab=pending" class="{% if tab == 'pending' %}active{% endif %}">На проверке</a>
+            <a href="?tab=archive" class="{% if tab == 'archive' %}active{% endif %}">Архив</a>
+            <a href="?tab=comments" class="{% if tab == 'comments' %}active{% endif %}">Комментарии</a>
+            <a href="?tab=users" class="{% if tab == 'users' %}active{% endif %}">Пользователи</a>
+            <a href="?tab=appeals" class="{% if tab == 'appeals' %}active{% endif %}">Обращения</a>
+            <a href="?tab=media" class="{% if tab == 'media' %}active{% endif %}">Архив данных</a>
+            <a href="?tab=themes" class="{% if tab == 'themes' %}active{% endif %}">Темы</a>
+            <a href="?tab=words" class="{% if tab == 'words' %}active{% endif %}">Фильтр слов</a>
+            <a href="?tab=add" class="{% if tab == 'add' %}active{% endif %}">Добавить</a>
+        </nav>
+        <a href="{% url 'logout_admin' %}" class="btn secondary">Выйти</a>
+    </aside>
+
+    <main class="admin-main">
+        {% if tab == 'active' or tab == 'archive' or tab == 'pending' %}
+        <section class="panel">
+            <div class="admin-head">
+                <div>
+                    <h2>{% if tab == 'active' %}Активные{% elif tab == 'pending' %}На проверке{% else %}Архив{% endif %}</h2>
+                    {% if tab == 'pending' %}<p class="muted">Здесь только просмотр заявки. Изменение — после публикации.</p>{% endif %}
+                </div>
+                <div class="row-actions">
+                    <a href="{% url 'export_excel' %}" class="btn secondary btn-sm">Экспорт Excel</a>
+                    <a href="?tab=add" class="btn-sm">Добавить</a>
+                </div>
+            </div>
+            <div class="admin-olymp-grid">
+                {% if tab == 'active' %}{% for o in active_olymps %}{% include "main/partials/admin_olympiad_card.html" with o=o mode='active' %}{% empty %}<p class="muted">Активных записей нет.</p>{% endfor %}{% endif %}
+                {% if tab == 'archive' %}{% for o in archive_olymps %}{% include "main/partials/admin_olympiad_card.html" with o=o mode='archive' %}{% empty %}<p class="muted">Архив пуст.</p>{% endfor %}{% endif %}
+                {% if tab == 'pending' %}{% for o in pending_olymps %}{% include "main/partials/admin_olympiad_card.html" with o=o mode='pending' %}{% empty %}<p class="muted">Новых заявок нет.</p>{% endfor %}{% endif %}
+            </div>
+        </section>
+
+        {% elif tab == 'comments' %}
+        <section class="panel"><h2>Комментарии на проверке</h2>{% for c in pending_comments %}<article class="admin-row"><div><strong>{{ c.user.username }}</strong><p>{{ c.html_text }}</p><span class="muted">{{ c.olympiad.title }}</span></div><form method="POST" class="row-actions">{% csrf_token %}<button name="approve_comment" value="{{ c.id }}" class="btn-sm">Одобрить</button><input name="delete_reason" placeholder="Причина удаления"><label class="check-row"><input type="checkbox" name="hide_delete_notice"><span>Без окна удаления</span></label><button name="delete_comment_site" value="{{ c.id }}" class="btn danger btn-sm">Удалить</button></form></article>{% empty %}<p class="muted">Комментариев на проверке нет.</p>{% endfor %}</section>
+
+        {% elif tab == 'users' %}
+        <section class="panel">
+            <h2>Пользователи</h2>
+            <div class="users-grid">
+                {% for row in all_profiles %}{% with p=row.profile %}
+                <article class="user-tile">
+                    <div class="user-main">
+                        <a href="{% url 'profile' p.user.pk %}" class="user-avatar avatar-wrap">{% if p.photo %}<img src="{{ p.photo.url }}" alt="{{ p.user.username }}">{% else %}<span>{{ p.user.username|first|upper }}</span>{% endif %}{% if row.is_online %}<i class="online-dot"></i>{% endif %}</a>
+                        <div>
+                            <a href="{% url 'profile' p.user.pk %}" class="user-name">{{ p.user.username }}</a>
+                            <p class="muted">{{ p.region|default:"Регион не указан" }}</p>
+                            <div class="user-meta"><span>Регистрация: {{ p.user.date_joined|date:"d.m.Y H:i" }}</span><span>Последний заход: {% if row.last_seen %}{{ row.last_seen|date:"d.m.Y H:i" }}{% else %}не было{% endif %}</span>{% if p.user.is_staff or p.user.is_superuser %}<span class="status">Админ</span>{% endif %}{% if p.is_banned %}<span class="status danger-status">Заблокирован</span>{% endif %}</div>
+                        </div>
+                    </div>
+                    <button type="button" class="gear-btn" onclick="openModal('userModal{{ p.user.id }}')" aria-label="Настройки пользователя">⚙</button>
+                </article>
+                <div class="modal" id="userModal{{ p.user.id }}"><div class="modal-card user-settings-modal user-settings-modal-xl"><button type="button" class="modal-x" onclick="closeModal('userModal{{ p.user.id }}')">×</button><h3>{{ p.user.username }}</h3>
+                    <div class="modal-grid">
+                        <form method="POST" class="modal-section">{% csrf_token %}<h4>Права и ограничения</h4><label class="check-row"><input type="checkbox" name="make_admin" {% if p.user.is_staff or p.user.is_superuser %}checked{% endif %}><span>Права администратора</span></label><label class="check-row"><input type="checkbox" name="can_upload_photo" {% if p.can_upload_photo %}checked{% endif %}><span>Может менять фото</span></label><label class="check-row"><input type="checkbox" name="can_change_username" {% if p.can_change_username %}checked{% endif %}><span>Может менять имя</span></label><label class="check-row"><input type="checkbox" name="can_comment" {% if p.can_comment %}checked{% endif %}><span>Может писать комментарии</span></label><button name="update_user_permissions" value="{{ p.user.id }}" class="btn-sm">Сохранить права</button></form>
+                        <form method="POST" class="modal-section">{% csrf_token %}<h4>Логин и пароль</h4><input name="new_username" value="{{ p.user.username }}" placeholder="Логин"><input name="new_password" type="password" placeholder="Новый пароль"><button name="change_user_password" value="{{ p.user.id }}" class="btn-sm">Сохранить</button></form>
+                        <form method="POST" class="modal-section">{% csrf_token %}<h4>Блокировка</h4>{% if p.is_banned %}<button name="unban_user" value="{{ p.user.id }}" class="btn-sm">Разблокировать</button>{% else %}<input name="ban_reason" placeholder="Причина"><input type="datetime-local" name="ban_end_date"><button name="ban_user" value="{{ p.user.id }}" class="btn danger btn-sm">Заблокировать</button>{% endif %}</form>
+                        <form method="POST" class="modal-section">{% csrf_token %}<h4>Сообщение</h4><textarea name="admin_message_text" placeholder="Сообщение пользователю"></textarea><button name="admin_message_user" value="{{ p.user.id }}" class="btn-sm">Написать</button></form>
+                    </div>
+                    <div class="row-actions"><a href="{% url 'profile' p.user.pk %}" class="btn secondary btn-sm">Открыть профиль</a>{% if p.user.username != 'admin' %}<form method="POST" onsubmit="return confirm('Удалить аккаунт {{ p.user.username|escapejs }}?')">{% csrf_token %}<button name="delete_user" value="{{ p.user.id }}" class="btn danger btn-sm">Удалить аккаунт</button></form>{% endif %}</div>
+                </div></div>
+                {% endwith %}{% endfor %}
+            </div>
+        </section>
+
+        {% elif tab == 'appeals' %}
+        <section class="appeals-grid">
+            <div class="panel"><h2>Обращения</h2><div class="thread-list">
+                {% for row in thread_rows %}{% with t=row.thread %}
+                <a href="?tab=appeals&thread={{ t.id }}" class="thread-row {% if t.user.username == 'admin' or t.user.is_staff or t.user.is_superuser %}admin-user{% endif %} {% if selected_thread and selected_thread.id == t.id %}active{% endif %}">
+                    <span class="user-avatar avatar-wrap thread-avatar">{% if t.user.profile.photo %}<img src="{{ t.user.profile.photo.url }}" alt="{{ t.user.username }}">{% else %}<span>{{ t.user.username|first|upper }}</span>{% endif %}{% if t.user.profile.is_online %}<i class="online-dot"></i>{% endif %}</span>
+                    <span class="thread-info"><strong>{% if t.subject %}{{ t.subject }}{% else %}{{ t.get_kind_display }}{% endif %}</strong><small>{{ t.user.username }} · {{ t.updated_at|date:"d.m H:i" }}</small></span>
+                    {% if row.unread %}<span class="unread-count">{{ row.unread }}</span>{% endif %}
+                </a>
+                {% endwith %}{% empty %}<p class="muted">Обращений пока нет.</p>{% endfor %}
+            </div></div>
+            <div class="panel chat-panel">
+                {% if selected_thread %}
+                <div class="admin-head"><div><h2>{{ selected_thread.subject }}</h2><p class="muted">{{ selected_thread.user.username }} · {{ selected_thread.get_kind_display }} · {{ selected_thread.created_at|date:"d.m.Y H:i" }}</p></div><form method="POST">{% csrf_token %}{% if selected_thread.status == 'open' %}<button name="close_thread" value="{{ selected_thread.id }}" class="btn secondary btn-sm">Закрыть</button>{% else %}<button name="open_thread" value="{{ selected_thread.id }}" class="btn-sm">Открыть</button>{% endif %}</form></div>
+                <form method="POST" class="inline-form title-edit-form">{% csrf_token %}<input type="hidden" name="thread_id" value="{{ selected_thread.id }}"><input name="subject" value="{{ selected_thread.subject }}"><button name="update_thread_title" value="1" class="btn-sm pencil-btn" title="Переименовать">✎</button></form>
+                {% if selected_thread.comment %}<div class="complaint-context"><strong>Жалоба на <a href="{% url 'profile' selected_thread.comment.user.pk %}">{{ selected_thread.comment.user.username }}</a> — <a href="{% url 'olympiad_detail' selected_thread.comment.olympiad.pk %}#comment-{{ selected_thread.comment.id }}">комментарий</a></strong><p>{{ selected_thread.comment.html_text }}</p></div>{% endif %}
+                <div class="admin-chat">
+                    {% for m in selected_thread.messages.all %}
+                    <article class="chat-msg {% if m.is_admin %}admin{% endif %}"><div class="chat-author">{% if m.sender %}{{ m.sender.username }}{% else %}Система{% endif %}<span>{{ m.created_at|date:"d.m H:i" }}</span></div>{% if m.text %}<p>{{ m.text|linebreaksbr }}</p>{% endif %}{% if m.file %}<div class="chat-file">{% if m.file_is_image %}<a href="{{ m.file.url }}" target="_blank"><img src="{{ m.file.url }}" alt="{{ m.file_name }}"></a>{% elif m.file_is_video %}<video controls src="{{ m.file.url }}"></video>{% else %}<a href="{{ m.file.url }}" target="_blank">{{ m.file_name }}</a>{% endif %}<form method="POST">{% csrf_token %}<button name="delete_support_file" value="{{ m.id }}" class="btn danger btn-xs">Удалить файл</button></form></div>{% endif %}</article>
+                    {% endfor %}
+                </div>
+                <form method="POST" enctype="multipart/form-data" class="reply-form sound-on-submit">{% csrf_token %}<input type="hidden" name="admin_support_reply" value="1"><input type="hidden" name="thread_id" value="{{ selected_thread.id }}"><textarea name="text" placeholder="Ответ"></textarea><div class="support-form-row"><input type="file" name="file" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"><button>Отправить</button></div></form>
+                {% else %}<p class="muted">Выберите обращение слева.</p>{% endif %}
+            </div>
+        </section>
+
+        {% elif tab == 'media' %}
+        <section class="panel"><div class="admin-head"><div><h2>Архив данных</h2><p class="muted">Все файлы из media: фото, видео, GIF, звуки, документы.</p></div></div><div class="media-table">
+            {% for f in media_files %}<article class="media-row {% if f.usage %}has-direct-usage{% endif %}"><div><strong>{{ f.name }}</strong><small>{{ f.path }} · {{ f.size|filesizeformat }} · {{ f.mime }}</small>{% if f.usage %}<div class="usage-list">{% for u in f.usage %}<span>{{ u }}</span>{% endfor %}</div>{% else %}<p class="muted">Использование не найдено</p>{% endif %}</div><div class="row-actions"><a href="/media/{{ f.path }}" target="_blank" class="btn secondary btn-sm">Открыть</a><form method="POST" onsubmit="return confirm('Удалить файл {{ f.name|escapejs }}?')">{% csrf_token %}<button name="delete_media_file" value="{{ f.path }}" class="btn danger btn-sm">Удалить</button></form></div></article>{% empty %}<p class="muted">Файлов нет.</p>{% endfor %}
+        </div></section>
+
+        {% elif tab == 'themes' %}
+        <section class="panel themes-panel"><div class="admin-head"><div><h2>Темы</h2><p class="muted">Плитки ниже показывают внешний вид каждой темы. Редактор один для всех тем.</p></div><form method="POST" class="create-theme-form">{% csrf_token %}<input name="new_theme_name" placeholder="Название новой темы"><input type="hidden" name="copy_from_theme" value="{{ edit_theme }}"><button name="create_theme" value="1" class="btn-sm">Создать тему</button></form></div>
+            <div class="admin-theme-tiles">{% for t in theme_presets %}<a href="?tab=themes&edit_theme={{ t.key }}" class="admin-theme-tile {% if edit_theme == t.key %}active{% endif %}" style="--tile-bg:{{ t.background_color }};--tile-card:{{ t.card_color }};--tile-primary:{{ t.primary_color }};"><span class="tile-preview"><i></i></span><strong>{{ t.name }}</strong><small>{{ t.get_card_style_display }}</small></a>{% endfor %}</div>
+        </section>
+        <section class="panel theme-editor-shell"><form method="POST" enctype="multipart/form-data" class="theme-editor-form" id="themeEditorForm">{% csrf_token %}<input type="hidden" name="save_theme_editor" value="1"><input type="hidden" name="selected_theme" value="{{ selected_preset.key }}">
+            <div class="theme-editor-layout"><aside class="theme-preview-card"><h3>Предпросмотр</h3><div class="theme-live-preview" id="themePreview"><div class="preview-topbar"><span id="previewTitle">{{ selected_preset.name }}</span><span class="preview-menu-chip">Меню</span></div><div class="preview-card"><span class="preview-pill"></span><strong>Карточка записи</strong><p>Плашки, карточки, меню и окно помощи используют этот же стиль.</p><button type="button">Кнопка</button></div><div class="preview-support">Привет, буду рад помочь!</div></div><p class="muted">Предпросмотр меняется сразу, включая выбранные фото/GIF до сохранения.</p>{% if not selected_preset.is_builtin %}<button form="deleteThemeForm" name="delete_theme" value="{{ selected_preset.key }}" class="btn danger btn-sm" onclick="return confirm('Удалить тему?')">Удалить тему</button>{% endif %}</aside>
+                <div class="theme-sections">
+                    <section class="theme-section"><h3>1. Название и шрифт</h3><div class="form-grid"><div class="form-group"><label>Название темы</label><input name="theme_name" value="{{ selected_preset.name }}"></div><div class="form-group"><label>Шрифт сайта</label><select name="font_family"><option {% if selected_preset.font_family == 'Inter' %}selected{% endif %}>Inter</option><option>Manrope</option><option>Montserrat</option><option>Roboto</option><option>Rubik</option><option>Nunito</option><option>Ubuntu</option><option>Comfortaa</option><option>Jura</option><option>Exo 2</option><option>Unbounded</option><option>Oswald</option><option>Play</option><option>Russo One</option><option>JetBrains Mono</option><option>Press Start 2P</option><option>Caveat</option><option>Pacifico</option><option>Lobster</option><option>Balsamiq Sans</option><option>Bips</option></select></div><div class="form-group"><label>Размер шрифта</label><input type="number" min="12" max="28" step="1" name="base_font_size" value="{{ selected_preset.base_font_size }}"></div><div class="form-group"><label>Масштаб версии покрупнее</label><input type="number" step="0.01" min="1" max="2.2" name="interface_scale" value="{{ selected_preset.interface_scale }}"></div></div></section>
+                    <section class="theme-section"><h3>2. Фон и эффект поверх сайта</h3><div class="form-grid"><div class="form-group"><label>Цвет страницы</label><input type="color" name="theme_background_color" value="{{ selected_preset.background_color }}"></div><div class="form-group"><label>Прозрачность фонового изображения/GIF</label><input type="range" min="0" max="1" step="0.01" name="theme_background_opacity" value="{{ selected_preset.background_opacity }}"><span class="range-value">{{ selected_preset.background_opacity }}</span></div><div class="form-group"><label>Фото фона</label><input type="file" name="theme_background_image" accept="image/*"></div><div class="form-group"><label>GIF фона</label><input type="file" name="theme_background_gif" accept="image/gif,image/*"></div><div class="form-group"><label>Размер фона</label><select name="theme_background_size"><option value="cover" {% if selected_preset.background_size == 'cover' %}selected{% endif %}>Заполнить</option><option value="contain" {% if selected_preset.background_size == 'contain' %}selected{% endif %}>Показать полностью</option><option value="100% auto" {% if selected_preset.background_size == '100% auto' %}selected{% endif %}>По ширине</option><option value="auto 100%" {% if selected_preset.background_size == 'auto 100%' %}selected{% endif %}>По высоте</option><option value="auto" {% if selected_preset.background_size == 'auto' %}selected{% endif %}>Оригинальный</option></select></div><div class="form-group"><label>Позиция</label><select name="theme_background_position"><option value="center center" {% if selected_preset.background_position == 'center center' %}selected{% endif %}>Центр</option><option value="center top" {% if selected_preset.background_position == 'center top' %}selected{% endif %}>Верх</option><option value="center bottom" {% if selected_preset.background_position == 'center bottom' %}selected{% endif %}>Низ</option><option value="left center" {% if selected_preset.background_position == 'left center' %}selected{% endif %}>Слева</option><option value="right center" {% if selected_preset.background_position == 'right center' %}selected{% endif %}>Справа</option></select></div><div class="form-group"><label>Эффект поверх сайта</label><select name="theme_overlay_effect"><option value="none" {% if selected_preset.overlay_effect == 'none' %}selected{% endif %}>Нет</option><option value="snow" {% if selected_preset.overlay_effect == 'snow' %}selected{% endif %}>Снег</option><option value="rain" {% if selected_preset.overlay_effect == 'rain' %}selected{% endif %}>Дождь</option><option value="custom_gif" {% if selected_preset.overlay_effect == 'custom_gif' %}selected{% endif %}>Свой GIF</option></select></div><div class="form-group"><label>Прозрачность эффекта</label><input type="range" min="0" max="1" step="0.01" name="theme_overlay_opacity" value="{{ selected_preset.overlay_opacity }}"><span class="range-value">{{ selected_preset.overlay_opacity }}</span></div><div class="form-group"><label>GIF поверх сайта</label><input type="file" name="theme_overlay_gif" accept="image/gif,image/*"></div></div></section>
+                    <section class="theme-section"><h3>3. Плашки, карточки, меню</h3><div class="form-grid"><div class="form-group"><label>Дизайн карточек</label><select name="theme_card_style"><option value="frosted" {% if selected_preset.card_style == 'frosted' %}selected{% endif %}>Размытое стекло</option><option value="solid" {% if selected_preset.card_style == 'solid' %}selected{% endif %}>Плотная карточка</option><option value="soft" {% if selected_preset.card_style == 'soft' %}selected{% endif %}>Мягкая светлая</option><option value="outline" {% if selected_preset.card_style == 'outline' %}selected{% endif %}>Контурная</option><option value="metallic" {% if selected_preset.card_style == 'metallic' %}selected{% endif %}>Металлик</option><option value="dark_glass" {% if selected_preset.card_style == 'dark_glass' %}selected{% endif %}>Тёмное стекло</option><option value="telegram" {% if selected_preset.card_style == 'telegram' %}selected{% endif %}>Telegram</option><option value="discord" {% if selected_preset.card_style == 'discord' %}selected{% endif %}>Discord</option><option value="instagram" {% if selected_preset.card_style == 'instagram' %}selected{% endif %}>Instagram</option></select></div><div class="form-group"><label>Цвет карточек</label><input type="color" name="theme_card_color" value="{{ selected_preset.card_color }}"></div><div class="form-group"><label>Прозрачность карточек</label><input type="range" min="0" max="1" step="0.01" name="theme_card_transparency" value="{{ selected_preset.card_transparency }}"><span class="range-value">{{ selected_preset.card_transparency }}</span></div><div class="form-group"><label>Размытие</label><input type="range" min="0" max="80" step="1" name="theme_card_blur" value="{{ selected_preset.card_blur }}"><span class="range-value">{{ selected_preset.card_blur }}px</span></div><div class="form-group"><label>Прозрачность рамки</label><input type="range" min="0" max="1" step="0.01" name="theme_card_border_opacity" value="{{ selected_preset.card_border_opacity }}"><span class="range-value">{{ selected_preset.card_border_opacity }}</span></div><div class="form-group"><label>Сила тени</label><input type="range" min="0" max="1" step="0.01" name="theme_card_shadow_opacity" value="{{ selected_preset.card_shadow_opacity }}"><span class="range-value">{{ selected_preset.card_shadow_opacity }}</span></div><div class="form-group"><label>Сила металлика</label><input type="range" min="0" max="1" step="0.01" name="theme_reflection_strength" value="{{ selected_preset.reflection_strength }}"><span class="range-value">{{ selected_preset.reflection_strength }}</span></div></div></section>
+                    <section class="theme-section"><h3>4. Цвета</h3><div class="form-grid"><div class="form-group"><label>Цвет текста</label><input type="color" name="theme_text_color" value="{{ selected_preset.text_color }}"></div><div class="form-group"><label>Прозрачность текста</label><input type="range" min="0.15" max="1" step="0.01" name="theme_text_opacity" value="{{ selected_preset.text_opacity }}"><span class="range-value">{{ selected_preset.text_opacity }}</span></div><div class="form-group"><label>Вторичный текст</label><input type="color" name="theme_muted_color" value="{{ selected_preset.muted_color }}"></div><div class="form-group"><label>Акцент</label><input type="color" name="theme_primary_color" value="{{ selected_preset.primary_color }}"></div><div class="form-group"><label>Опасный цвет</label><input type="color" name="theme_danger_color" value="{{ selected_preset.danger_color }}"></div><div class="form-group wide"><label>Дополнительный CSS</label><textarea name="theme_custom_css">{{ selected_preset.custom_css }}</textarea></div></div></section>
+                    <div class="row-actions theme-save-row"><button class="btn" type="submit" name="save_theme_editor" value="1">Сохранить тему</button><button class="btn secondary" type="submit" name="preview_theme_editor" value="1" formtarget="_blank">Предпросмотр главной</button><button class="btn secondary" type="submit" name="cancel_theme_preview" value="1">Отменить изменения</button></div>
+                </div>
+            </div></form><form method="POST" id="deleteThemeForm">{% csrf_token %}</form></section>
+        <section class="panel site-settings-card">
+            <h2>Общие настройки сайта</h2>
+            <p class="muted">Эти параметры не зависят от выбранной темы. Файл можно заменить кликом по превью или перетаскиванием.</p>
+            <form method="POST" enctype="multipart/form-data" class="site-common-form">{% csrf_token %}
+                <input type="hidden" name="save_site_common" value="1">
+                <input type="hidden" name="selected_theme" value="{{ selected_preset.key }}">
+                <div class="form-grid">
+                    <div class="form-group"><label>Тема по умолчанию</label><select name="default_theme">{% for t in theme_presets %}<option value="{{ t.key }}" {% if default_theme == t.key %}selected{% endif %}>{{ t.name }}</option>{% endfor %}</select></div>
+                    <div class="form-group"><label>Название сайта</label><input name="site_name" value="{{ custom_theme.site_name }}"></div>
+                    <label class="media-drop-card image-card">
+                        <span class="media-drop-title">Фото / логотип сайта</span>
+                        <span class="media-drop-preview">{% if custom_theme.site_logo %}<img src="{{ custom_theme.site_logo.url }}" alt="Логотип">{% else %}<b>{{ custom_theme.site_name|first|upper }}</b>{% endif %}</span>
+                        <span class="media-drop-hint">Нажмите или перетащите изображение</span>
+                        <input class="file-raw" type="file" name="site_logo" accept="image/*">
+                    </label>
+                    <label class="media-drop-card image-card square-media">
+                        <span class="media-drop-title">GIF окна помощи</span>
+                        <span class="media-drop-preview">{% if custom_theme.support_widget_gif %}<img src="{{ custom_theme.support_widget_gif.url }}" alt="GIF помощи">{% else %}<b>GIF</b>{% endif %}</span>
+                        <span class="media-drop-hint">Нажмите или перетащите GIF/фото</span>
+                        <input class="file-raw" type="file" name="support_widget_gif" accept="image/gif,image/*">
+                    </label>
+                    <div class="form-group"><label>Заголовок окна помощи</label><input name="support_widget_title" value="{{ custom_theme.support_widget_title }}"></div>
+                    <div class="form-group"><label>Текст окна помощи</label><input name="support_widget_text" value="{{ custom_theme.support_widget_text }}"></div>
+                </div>
+                <div class="sound-grid">
+                    <div class="sound-card sound-drop-card"><label>Звук отправки</label>{% if custom_theme.send_sound %}<audio controls src="{{ custom_theme.send_sound.url }}"></audio>{% else %}<small class="muted">Будет использован стандартный звук</small>{% endif %}<label class="sound-file-zone"><span>Перетащите звук сюда или нажмите</span><input class="file-raw" type="file" name="send_sound" accept="audio/*"></label><label>Громкость</label><input type="range" min="0" max="200" name="send_sound_volume" value="{{ custom_theme.send_sound_volume|default:100 }}"><span class="range-value">{{ custom_theme.send_sound_volume|default:100 }}%</span></div>
+                    <div class="sound-card sound-drop-card"><label>Звук нового сообщения</label>{% if custom_theme.notification_sound %}<audio controls src="{{ custom_theme.notification_sound.url }}"></audio>{% else %}<small class="muted">Будет использован стандартный звук</small>{% endif %}<label class="sound-file-zone"><span>Перетащите звук сюда или нажмите</span><input class="file-raw" type="file" name="notification_sound" accept="audio/*"></label><label>Громкость</label><input type="range" min="0" max="200" name="notification_sound_volume" value="{{ custom_theme.notification_sound_volume|default:100 }}"><span class="range-value">{{ custom_theme.notification_sound_volume|default:100 }}%</span></div>
+                    <div class="sound-card sound-drop-card"><label>Звук жалобы</label>{% if custom_theme.report_sound %}<audio controls src="{{ custom_theme.report_sound.url }}"></audio>{% else %}<small class="muted">Будет использован стандартный звук</small>{% endif %}<label class="sound-file-zone"><span>Перетащите звук сюда или нажмите</span><input class="file-raw" type="file" name="report_sound" accept="audio/*"></label><label>Громкость</label><input type="range" min="0" max="200" name="report_sound_volume" value="{{ custom_theme.report_sound_volume|default:100 }}"><span class="range-value">{{ custom_theme.report_sound_volume|default:100 }}%</span></div>
+                    <div class="sound-card sound-drop-card"><label>Звук открытия помощи</label>{% if custom_theme.support_open_sound %}<audio controls src="{{ custom_theme.support_open_sound.url }}"></audio>{% else %}<small class="muted">Будет использован стандартный звук</small>{% endif %}<label class="sound-file-zone"><span>Перетащите звук сюда или нажмите</span><input class="file-raw" type="file" name="support_open_sound" accept="audio/*"></label><label>Громкость</label><input type="range" min="0" max="200" name="support_open_sound_volume" value="{{ custom_theme.support_open_sound_volume|default:100 }}"><span class="range-value">{{ custom_theme.support_open_sound_volume|default:100 }}%</span></div>
+                    <div class="sound-card sound-drop-card"><label>Звук закрытия помощи</label>{% if custom_theme.support_close_sound %}<audio controls src="{{ custom_theme.support_close_sound.url }}"></audio>{% else %}<small class="muted">Будет использован стандартный звук</small>{% endif %}<label class="sound-file-zone"><span>Перетащите звук сюда или нажмите</span><input class="file-raw" type="file" name="support_close_sound" accept="audio/*"></label><label>Громкость</label><input type="range" min="0" max="200" name="support_close_sound_volume" value="{{ custom_theme.support_close_sound_volume|default:100 }}"><span class="range-value">{{ custom_theme.support_close_sound_volume|default:100 }}%</span></div>
+                </div>
+                <label class="check-row"><input type="checkbox" name="sound_enabled_default" {% if custom_theme.sound_enabled_default %}checked{% endif %}><span>Звук включён по умолчанию</span></label>
+                <div class="form-group wide"><label>Текст футера</label><textarea name="footer_text">{{ footer_text }}</textarea></div>
+                <button class="btn">Сохранить общие настройки</button>
+            </form>
+        </section>
+
+        {% elif tab == 'words' %}
+        <section class="panel"><h2>Фильтр слов</h2><form method="POST" class="inline-form">{% csrf_token %}<input name="word" placeholder="Новое слово"><button name="add_word" value="1">Добавить</button></form><div class="word-cloud">{% for w in banned_words %}<span class="word-chip">{{ w.word }}<form method="POST">{% csrf_token %}<button name="delete_word" value="{{ w.id }}" class="btn danger btn-sm">×</button></form></span>{% empty %}<p class="muted">Список пуст.</p>{% endfor %}</div></section>
+
+        {% elif tab == 'add' %}
+        <section class="panel"><h2>Добавить запись</h2><form method="POST" enctype="multipart/form-data" class="admin-form">{% csrf_token %}{% include "main/partials/olympiad_form_fields.html" %}<button type="submit" class="btn wide">Добавить на проверку</button></form></section><section class="panel"><div class="admin-head"><div><h2>Импорт Excel</h2><p class="muted">Перетащите файл в окно ниже или выберите его вручную.</p></div><a href="{% url 'excel_instruction' %}" class="btn secondary btn-sm">Инструкция Excel</a></div><form method="POST" enctype="multipart/form-data">{% csrf_token %}<label class="dropzone" id="excelDropzone"><input type="file" name="excel_file" id="excelInput" accept=".xlsx,.xls"><span>Перетащите Excel сюда</span><strong>или нажмите для выбора файла</strong></label><button class="btn" style="margin-top:12px">Загрузить Excel</button></form></section>
+
+        {% elif tab == 'edit' and olymp_to_edit %}
+        <section class="panel"><h2>Редактирование</h2><form method="POST" enctype="multipart/form-data" class="admin-form">{% csrf_token %}<input type="hidden" name="edit_id" value="{{ olymp_to_edit.id }}">{% include "main/partials/olympiad_form_fields.html" with o=olymp_to_edit %}<button class="btn wide">Сохранить</button></form></section>
+        {% endif %}
+    </main>
+</section>
+
+<style>
+.admin-layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:18px;align-items:start}.admin-sidebar{position:sticky;top:18px;display:grid;gap:18px}.admin-sidebar h1{margin:0;font-size:1.7rem}.admin-tabs{display:grid;gap:6px}.admin-tabs a{padding:11px 13px;border-radius:14px;color:var(--app-text);font-weight:800}.admin-tabs a.active,.admin-tabs a:hover{background:rgba(34,158,217,.12);text-decoration:none}.admin-main{display:grid;gap:18px}.admin-head{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-bottom:16px}.row-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.admin-olymp-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.admin-olymp-card{position:relative;display:grid;gap:10px;min-height:310px;padding:14px}.edit-pen{position:absolute;right:12px;top:12px;z-index:3;width:36px;height:36px;border-radius:999px;display:grid;place-items:center;background:var(--app-card);border:1px solid var(--app-border);font-size:1.2rem}.admin-cover{position:relative;height:126px;border-radius:20px;overflow:hidden;display:grid;place-items:end center;background:linear-gradient(135deg,rgba(34,158,217,.18),rgba(255,255,255,.38));font-weight:900;text-align:center;color:#fff;padding:12px}.admin-cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.admin-cover:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent,rgba(0,0,0,.50))}.admin-cover span{position:relative;z-index:1;text-shadow:0 2px 12px rgba(0,0,0,.45)}.admin-brief,.mini-meta{display:flex;gap:6px;flex-wrap:wrap;color:var(--app-muted);font-size:.84rem}.admin-brief span,.admin-brief a,.mini-meta span{padding:5px 8px;border-radius:999px;background:rgba(255,255,255,.32);border:1px solid var(--app-border)}.compact-desc{margin:0;line-height:1.45}.admin-details summary{cursor:pointer;font-weight:900;color:var(--app-primary)}.admin-comments-mini{display:grid;gap:8px;max-height:260px;overflow:auto}.mini-comment{padding:10px;border:1px solid var(--app-border);border-radius:14px;background:rgba(255,255,255,.25)}.admin-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:14px;border:1px solid var(--app-border);border-radius:18px;background:rgba(255,255,255,.25);margin-top:10px}.users-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.user-tile{position:relative;padding:14px;border:1px solid var(--app-border);border-radius:20px;background:var(--app-card);display:grid;gap:12px}.user-main{display:flex;gap:12px;align-items:center}.user-avatar{width:64px;height:64px;border-radius:20px;overflow:visible;background:rgba(34,158,217,.12);font-weight:900;display:grid;place-items:center}.user-avatar img{width:100%;height:100%;object-fit:cover;border-radius:20px}.user-name{font-weight:900}.user-meta{display:grid;gap:4px;color:var(--app-muted);font-size:.82rem}.gear-btn{position:absolute;right:10px;top:10px;width:36px;min-height:36px;padding:0;border-radius:999px;background:rgba(255,255,255,.30);color:var(--app-text);box-shadow:none}.appeals-grid{display:grid;grid-template-columns:360px minmax(0,1fr);gap:16px}.thread-list{display:grid;gap:8px}.thread-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px;border:1px solid var(--app-border);border-radius:16px;color:var(--app-text)}.thread-row.active,.thread-row:hover{background:rgba(34,158,217,.10);text-decoration:none}.thread-row.admin-user .thread-info strong{font-weight:1000}.thread-row.admin-user .thread-info small{font-weight:900}.thread-avatar{width:48px;height:48px;border-radius:16px;overflow:visible}.thread-avatar img{width:100%;height:100%;object-fit:cover;border-radius:16px}.thread-info{display:grid;min-width:0}.thread-info small{color:var(--app-muted)}.unread-count{display:grid;place-items:center;min-width:24px;height:24px;border-radius:999px;background:var(--app-danger);color:#fff;font-weight:900}.admin-chat{display:grid;gap:8px;max-height:430px;overflow:auto;margin:14px 0}.chat-msg{max-width:78%;padding:10px 12px;border-radius:16px;background:rgba(15,23,42,.06)}.chat-msg.admin{margin-left:auto;background:rgba(34,158,217,.15)}.chat-author{font-size:.78rem;font-weight:900;color:var(--app-muted);display:flex;gap:8px}.chat-file img{max-width:220px;max-height:180px;border-radius:14px;display:block}.chat-file video{max-width:320px;width:100%;border-radius:14px;display:block}.form-grid,.admin-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.wide{grid-column:1/-1}.inline-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.dropzone{position:relative;display:grid;place-items:center;gap:12px;min-height:190px;padding:22px;border:2px dashed rgba(34,158,217,.38);border-radius:24px;text-align:center;background:rgba(34,158,217,.06)}.dropzone.dragover{border-color:var(--app-primary);background:rgba(34,158,217,.14)}.dropzone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}.modal{display:none;position:fixed;inset:0;z-index:90;background:rgba(15,23,42,.48);place-items:center;padding:20px}.modal.open{display:grid}.modal-card{width:min(760px,100%);max-height:92vh;overflow:auto;padding:24px;border-radius:26px;background:rgba(var(--app-card-rgb),.97);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);box-shadow:0 28px 80px rgba(0,0,0,.34);position:relative}.modal-x{position:absolute;right:12px;top:12px;width:36px;min-height:36px;padding:0}.modal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.modal-section{display:grid;gap:8px;padding:12px;border:1px solid var(--app-border);border-radius:16px}.status{display:inline-flex;padding:4px 8px;border-radius:999px;font-weight:900}.danger-status{background:rgba(224,36,94,.12);color:#be123c}.media-table{display:grid;gap:10px}.media-row{display:flex;justify-content:space-between;gap:12px;padding:12px;border:1px solid var(--app-border);border-radius:16px;background:rgba(255,255,255,.22)}.media-row small{display:block;color:var(--app-muted)}.admin-theme-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:16px}.admin-theme-tile{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center;padding:12px;border-radius:18px;background:linear-gradient(135deg,var(--tile-bg),rgba(255,255,255,.28));border:1px solid var(--app-border);color:var(--app-text);box-shadow:var(--app-shadow)}.admin-theme-tile:hover{text-decoration:none;transform:translateY(-1px)}.admin-theme-tile.active{outline:2px solid var(--app-primary)}.tile-preview{width:54px;height:42px;border-radius:14px;background:var(--tile-bg);display:grid;place-items:center;border:1px solid rgba(0,0,0,.12)}.tile-preview i{display:block;width:34px;height:22px;border-radius:8px;background:var(--tile-card);box-shadow:0 8px 18px rgba(0,0,0,.12)}.create-theme-form{display:grid;grid-template-columns:minmax(180px,1fr) auto;gap:8px}.theme-editor-layout{display:grid;grid-template-columns:310px minmax(0,1fr);gap:18px;align-items:start}.theme-preview-card{position:sticky;top:82px;display:grid;gap:12px;max-height:calc(100vh - 96px);overflow:auto;padding-right:2px}.theme-live-preview{min-height:380px;border-radius:26px;padding:18px;background:var(--preview-bg,var(--app-bg));border:1px solid var(--app-border);overflow:hidden;position:relative;display:grid;gap:14px;align-content:start}.preview-topbar,.preview-support{position:relative;border-radius:18px;padding:12px 14px;background:rgba(var(--preview-card-rgb,255,255,255),var(--preview-card-alpha,.88));border:1px solid rgba(91,112,131,var(--preview-border,.24));backdrop-filter:blur(var(--preview-blur,18px));color:rgba(var(--preview-text-rgb,23,33,43),var(--preview-text-alpha,1));box-shadow:0 14px 28px rgba(15,23,42,.10)}.preview-topbar{display:flex;justify-content:space-between;font-weight:900}.preview-support{margin-left:auto;width:210px;font-weight:800}.preview-card{position:relative;margin-top:0;padding:16px;border-radius:22px;background:rgba(var(--preview-card-rgb,255,255,255),var(--preview-card-alpha,.88));border:1px solid rgba(91,112,131,var(--preview-border,.24));backdrop-filter:blur(var(--preview-blur,18px));color:rgba(var(--preview-text-rgb,23,33,43),var(--preview-text-alpha,1));box-shadow:0 22px 55px rgba(15,23,42,.12);overflow:hidden}.preview-card.metallic:before,.preview-topbar.metallic:before,.preview-support.metallic:before{content:"";position:absolute;inset:0;opacity:var(--preview-reflection,.25);background:linear-gradient(115deg,rgba(255,255,255,.92),transparent 22%,rgba(148,163,184,.28) 48%,transparent 74%)}.preview-card>*{position:relative}.preview-pill{display:block;width:72px;height:11px;border-radius:999px;background:var(--preview-primary,var(--app-primary));margin-bottom:12px}.theme-sections{display:grid;gap:16px}.theme-section{padding:16px;border-radius:22px;border:1px solid var(--app-border);background:rgba(255,255,255,.18)}.range-value{font-size:.82rem;color:var(--app-muted);font-weight:800}.word-cloud{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.word-chip{display:inline-flex;align-items:center;gap:8px;padding:6px 8px 6px 12px;border-radius:999px;background:rgba(255,255,255,.30);border:1px solid var(--app-border)}.word-chip form{display:inline}.word-chip button{width:28px;min-height:28px;padding:0}.btn-xs{font-size:.72rem;padding:5px 8px;min-height:28px}.admin-delete-comment-form{display:grid;gap:6px;margin-top:8px}.admin-delete-comment-form input{font-size:.82rem}.pencil-btn{width:42px;padding:0}.title-edit-form{grid-template-columns:minmax(0,1fr) auto;display:grid}@media(max-width:1180px){.admin-olymp-grid,.users-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.appeals-grid{grid-template-columns:1fr}}@media(max-width:980px){.theme-editor-layout{grid-template-columns:1fr}.theme-preview-card{position:static}}@media(max-width:760px){.admin-layout{grid-template-columns:1fr}.admin-sidebar{position:static}.admin-olymp-grid,.users-grid,.form-grid,.admin-form,.modal-grid{grid-template-columns:1fr}.admin-row,.media-row{flex-direction:column}.admin-head{align-items:flex-start;flex-direction:column}}
+
+.user-tile{position:relative}.gear-btn{position:absolute;right:12px;top:12px;width:38px;min-height:38px;padding:0;border-radius:999px;background:rgba(255,255,255,.46);color:var(--app-text);box-shadow:none;border:1px solid var(--app-border)}.modal{align-items:center;justify-items:center}.modal-card.wide-modal{width:min(1080px,calc(100vw - 34px));max-height:calc(100vh - 34px);overflow:auto;background:rgba(var(--app-card-rgb),.98)!important;border:1px solid rgba(255,255,255,.62)}.modal-card.wide-modal .modal-grid{grid-template-columns:repeat(2,minmax(260px,1fr))}.modal-section{background:rgba(255,255,255,.34)}
+.theme-save-row{position:sticky;bottom:10px;z-index:3;padding:12px;border-radius:18px;background:rgba(var(--app-card-rgb),.94);backdrop-filter:blur(18px);border:1px solid var(--app-border)}.site-common-form{display:grid;gap:16px}.media-drop-card{display:grid;gap:9px;padding:14px;border:1px dashed rgba(34,158,217,.42);border-radius:20px;background:rgba(255,255,255,.18);cursor:pointer}.media-drop-card.dragover{background:rgba(34,158,217,.14);border-color:var(--app-primary)}.media-drop-card input{display:none}.media-drop-title{font-weight:900}.media-drop-preview{height:108px;border-radius:16px;background:rgba(255,255,255,.34);display:grid;place-items:center;overflow:hidden;border:1px solid var(--app-border)}.media-drop-preview img{width:100%;height:100%;object-fit:cover}.media-drop-preview b{font-size:2rem;color:var(--app-primary)}.media-drop-hint{font-size:.82rem;color:var(--app-muted);font-weight:800}.sound-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.sound-card{display:grid;gap:8px;padding:14px;border:1px solid var(--app-border);border-radius:18px;background:rgba(255,255,255,.20)}.sound-card audio{width:100%}.sound-card input[type=file]{border-style:dashed}.color-value{display:inline-flex;margin-top:6px;padding:5px 8px;border-radius:999px;background:rgba(255,255,255,.32);font-size:.78rem;font-weight:900;color:var(--app-muted)}input[type=color]{height:46px;padding:5px;border-radius:14px;cursor:pointer}.theme-live-preview,.preview-topbar,.preview-card,.preview-support{font-family:var(--preview-font,Inter),Inter,sans-serif;font-size:var(--preview-font-size,16px)}@media(max-width:820px){.modal-card.wide-modal .modal-grid{grid-template-columns:1fr}.theme-save-row{position:static}.sound-grid{grid-template-columns:1fr}}
+
+
+/* v13 admin fixes */
+.user-settings-modal{width:min(640px,calc(100vw - 28px));max-height:calc(100vh - 28px);overflow:auto;padding:18px;border-radius:22px;background:rgba(var(--app-card-rgb),.985)!important;border:1px solid rgba(255,255,255,.66)}
+.user-settings-modal h3{margin:0 0 10px;font-size:1.25rem}.user-settings-modal .modal-grid{grid-template-columns:1fr 1fr;gap:10px}.user-settings-modal .modal-section{padding:10px;border-radius:14px;gap:7px;background:rgba(255,255,255,.24)}.user-settings-modal .modal-section h4{margin:0 0 4px;font-size:.92rem}.user-settings-modal input,.user-settings-modal textarea{padding:9px 10px;border-radius:12px;font-size:.9rem}.user-settings-modal textarea{min-height:74px}.user-settings-modal .check-row{padding:7px 9px;border-radius:12px;font-size:.86rem}.user-settings-modal .btn-sm{min-height:32px;padding:7px 10px}.user-settings-modal .modal-x{right:10px;top:10px}.square-media .media-drop-preview{aspect-ratio:1/1;height:auto;min-height:180px}.square-media .media-drop-preview img{width:100%;height:100%;object-fit:cover}.sound-drop-card{position:relative}.sound-file-zone{position:relative;display:grid;place-items:center;min-height:74px;padding:12px;border:2px dashed rgba(34,158,217,.38);border-radius:16px;background:rgba(34,158,217,.07);text-align:center;color:var(--app-muted);font-weight:900;cursor:pointer}.sound-file-zone input{position:absolute;inset:0;opacity:0;cursor:pointer}.sound-file-zone.dragover{border-color:var(--app-primary);background:rgba(34,158,217,.16)}@media(max-width:720px){.user-settings-modal .modal-grid{grid-template-columns:1fr}.user-settings-modal{padding:16px}}
+
+
+/* v14: user settings modal and media archive fixes */
+.user-settings-modal-xl{
+    width:min(980px,calc(100vw - 36px))!important;
+    max-height:calc(100vh - 32px)!important;
+    padding:18px!important;
+    overflow:auto!important;
+    background:rgba(var(--app-card-rgb),.992)!important;
+}
+.user-settings-modal-xl .modal-grid{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(280px,1fr))!important;
+    gap:12px!important;
+}
+.user-settings-modal-xl .modal-section{
+    min-width:0;
+    padding:12px!important;
+    border-radius:16px!important;
+    background:rgba(255,255,255,.30)!important;
+}
+.user-settings-modal-xl textarea{min-height:96px!important;resize:vertical}
+.user-settings-modal-xl input{min-width:0}
+.user-settings-modal-xl .row-actions{margin-top:12px}
+@media(max-width:760px){
+    .user-settings-modal-xl{width:calc(100vw - 18px)!important;max-height:calc(100vh - 18px)!important;padding:14px!important}
+    .user-settings-modal-xl .modal-grid{grid-template-columns:1fr!important}
+}
+.media-row.has-direct-usage{border-color:rgba(34,158,217,.45);background:rgba(34,158,217,.08)}
+.media-row .usage-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.media-row .usage-list span{padding:4px 8px;border-radius:999px;background:rgba(255,255,255,.32);border:1px solid var(--app-border);font-size:.78rem;font-weight:800}
+
+</style>
+<script>
+function openModal(id){var el=document.getElementById(id);if(el)el.classList.add('open')}function closeModal(id){var el=document.getElementById(id);if(el)el.classList.remove('open')}
+function hexToRgbAdmin(hex){hex=(hex||'#ffffff').replace('#','');if(hex.length!==6)return '255,255,255';return parseInt(hex.slice(0,2),16)+','+parseInt(hex.slice(2,4),16)+','+parseInt(hex.slice(4,6),16)}
+function updateThemePreview(){
+    var form=document.getElementById('themeEditorForm');
+    var box=document.getElementById('themePreview');
+    if(!form||!box)return;
+    var get=function(n){return form.querySelector('[name="'+n+'"]')};
+    var bg=get('theme_background_color')?.value||'#eef6fb';
+    var cc=get('theme_card_color')?.value||'#ffffff';
+    var tc=get('theme_text_color')?.value||'#17212b';
+    var primary=get('theme_primary_color')?.value||'#229ED9';
+    var alpha=get('theme_card_transparency')?.value||'.88';
+    var blur=get('theme_card_blur')?.value||'18';
+    var border=get('theme_card_border_opacity')?.value||'.24';
+    var reflection=get('theme_reflection_strength')?.value||'.25';
+    var textAlpha=get('theme_text_opacity')?.value||'1';
+    var style=get('theme_card_style')?.value||'frosted';
+    var font=get('font_family')?.value||'Inter';
+    var fontSize=get('base_font_size')?.value||'16';
+    var bgSize=get('theme_background_size')?.value||'cover';
+    var bgPos=get('theme_background_position')?.value||'center center';
+    var bgOpacity=get('theme_background_opacity')?.value||'1';
+    var bgFile=(get('theme_background_gif')?.files?.[0]||get('theme_background_image')?.files?.[0]);
+    box.style.setProperty('--preview-bg',bg);
+    box.style.setProperty('--preview-card-rgb',hexToRgbAdmin(cc));
+    box.style.setProperty('--preview-card-alpha',alpha);
+    box.style.setProperty('--preview-text-rgb',hexToRgbAdmin(tc));
+    box.style.setProperty('--preview-text-alpha',textAlpha);
+    box.style.setProperty('--preview-primary',primary);
+    box.style.setProperty('--preview-font',font);
+    box.style.setProperty('--preview-font-size',fontSize+'px');
+    box.style.setProperty('--preview-blur',blur+'px');
+    box.style.setProperty('--preview-border',border);
+    box.style.setProperty('--preview-reflection',reflection);
+    box.style.backgroundColor=bg;
+    box.style.backgroundSize=bgSize;
+    box.style.backgroundPosition=bgPos;
+    if(bgFile){box.style.backgroundImage='url('+URL.createObjectURL(bgFile)+')';box.style.backgroundRepeat='no-repeat';box.style.opacity=bgOpacity;}
+    else {box.style.backgroundImage='radial-gradient(circle at 18% 14%,rgba(255,255,255,.45),transparent 30%),radial-gradient(circle at 78% 82%,rgba(34,158,217,.14),transparent 28%)';box.style.opacity='1';}
+    document.querySelectorAll('#themePreview .preview-card,#themePreview .preview-topbar,#themePreview .preview-support,#themePreview .preview-menu-chip').forEach(function(el){
+        el.classList.toggle('metallic',style==='metallic');
+        el.style.background = style==='solid' ? 'rgb('+hexToRgbAdmin(cc)+')' : 'rgba('+hexToRgbAdmin(cc)+','+alpha+')';
+        el.style.backdropFilter='blur('+blur+'px)';
+        el.style.webkitBackdropFilter='blur('+blur+'px)';
+        el.style.color='rgba('+hexToRgbAdmin(tc)+','+textAlpha+')';
+        el.style.borderColor='rgba(91,112,131,'+border+')';
+    });
+    var title=document.getElementById('previewTitle');
+    if(title&&get('theme_name'))title.textContent=get('theme_name').value;
+    var btn=box.querySelector('.preview-card button');
+    if(btn){btn.style.background=primary;}
+    document.querySelectorAll('.range-value').forEach(function(el){var inp=el.previousElementSibling;if(inp&&inp.type==='range'){el.textContent=inp.value+(inp.name==='theme_card_blur'?'px':'')}});
+}
+document.addEventListener('input',function(e){if(e.target.closest('#themeEditorForm'))updateThemePreview();if(e.target.type==='color')updateColorLabels();if(e.target.type==='range'&&e.target.nextElementSibling&&e.target.nextElementSibling.classList.contains('range-value')){e.target.nextElementSibling.textContent=e.target.value+(e.target.max==='200'?'%':(e.target.name==='theme_card_blur'?'px':''));}});document.addEventListener('change',function(e){if(e.target.closest('#themeEditorForm'))updateThemePreview();});document.addEventListener('DOMContentLoaded',updateThemePreview);
+
+function updateColorLabels(){document.querySelectorAll('input[type="color"]').forEach(function(inp){var next=inp.nextElementSibling;if(!next||!next.classList.contains('color-value')){next=document.createElement('span');next.className='color-value';inp.insertAdjacentElement('afterend',next);}next.textContent=inp.value;});}
+function initMediaDropCards(){document.querySelectorAll('.media-drop-card').forEach(function(card){var input=card.querySelector('input[type=file]');var preview=card.querySelector('.media-drop-preview');if(!input)return;['dragenter','dragover'].forEach(function(ev){card.addEventListener(ev,function(e){e.preventDefault();card.classList.add('dragover');});});['dragleave','drop'].forEach(function(ev){card.addEventListener(ev,function(e){e.preventDefault();card.classList.remove('dragover');});});card.addEventListener('drop',function(e){if(e.dataTransfer.files.length){input.files=e.dataTransfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));}});input.addEventListener('change',function(){var file=input.files&&input.files[0];if(file&&preview&&file.type.startsWith('image/')){preview.innerHTML='<img alt="preview">';preview.querySelector('img').src=URL.createObjectURL(file);}});});}
+
+document.addEventListener('DOMContentLoaded',function(){updateColorLabels();initMediaDropCards();var dz=document.getElementById('excelDropzone');var input=document.getElementById('excelInput');if(dz&&input){['dragenter','dragover'].forEach(function(ev){dz.addEventListener(ev,function(e){e.preventDefault();dz.classList.add('dragover');});});['dragleave','drop'].forEach(function(ev){dz.addEventListener(ev,function(e){e.preventDefault();dz.classList.remove('dragover');});});dz.addEventListener('drop',function(e){if(e.dataTransfer.files.length){input.files=e.dataTransfer.files;}});}});
+
+function initSoundDropCards(){document.querySelectorAll('.sound-file-zone').forEach(function(zone){var input=zone.querySelector('input[type=file]');if(!input)return;['dragenter','dragover'].forEach(function(ev){zone.addEventListener(ev,function(e){e.preventDefault();zone.classList.add('dragover');});});['dragleave','drop'].forEach(function(ev){zone.addEventListener(ev,function(e){e.preventDefault();zone.classList.remove('dragover');});});zone.addEventListener('drop',function(e){if(e.dataTransfer.files.length){input.files=e.dataTransfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));}});input.addEventListener('change',function(){var f=input.files&&input.files[0];if(f)zone.querySelector('span').textContent=f.name;});});}
+document.addEventListener('DOMContentLoaded',initSoundDropCards);
+</script>
+{% endblock %}

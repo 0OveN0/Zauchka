@@ -1,0 +1,70 @@
+<div class="form-group">
+    <label>Тип</label>
+    <select name="listing_type" required>
+        <option value="olympiad" {% if o.listing_type == 'olympiad' %}selected{% endif %}>Олимпиада</option>
+        <option value="grant" {% if o.listing_type == 'grant' %}selected{% endif %}>Грант</option>
+    </select>
+</div>
+<div class="form-group">
+    <label>Название</label>
+    <input name="title" value="{{ o.title|default:'' }}" required>
+</div>
+<div class="form-group">
+    <label>Организатор / от кого</label>
+    <input name="organizer" value="{{ o.organizer|default:'' }}" placeholder="Например: Минобрнауки, фонд, университет">
+</div>
+<div class="form-group">
+    <label>Ссылка регистрации</label>
+    <input type="url" name="link" value="{{ o.link|default:'' }}" required>
+</div>
+<div class="form-group">
+    <label>Дата начала</label>
+    <input type="date" name="start_date" value="{{ o.start_date|date:'Y-m-d' }}" required>
+</div>
+<div class="form-group">
+    <label>Дата окончания</label>
+    <input type="date" name="end_date" value="{{ o.end_date|date:'Y-m-d' }}" required>
+</div>
+<div class="form-group">
+    <label>Аудитория</label>
+    <select name="target_audience" required>
+        <option value="school" {% if o.target_audience == 'school' %}selected{% endif %}>Школьник</option>
+        <option value="student" {% if o.target_audience == 'student' %}selected{% endif %}>Студент</option>
+    </select>
+</div>
+<div class="form-group">
+    <label>Класс</label>
+    <input type="number" name="grade" value="{{ o.grade|default:'' }}">
+</div>
+<div class="form-group">
+    <label>Уровень</label>
+    <select name="stage" required>
+        <option value="municipal" {% if o.stage == 'municipal' %}selected{% endif %}>Муниципальный</option>
+        <option value="regional" {% if o.stage == 'regional' %}selected{% endif %}>Региональный</option>
+        <option value="all_russia" {% if o.stage == 'all_russia' %}selected{% endif %}>Всероссийский</option>
+    </select>
+</div>
+<div class="form-group">
+    <label>Формат</label>
+    <select name="format" required>
+        <option value="online" {% if o.format == 'online' %}selected{% endif %}>Онлайн</option>
+        <option value="offline" {% if o.format == 'offline' %}selected{% endif %}>Очно</option>
+    </select>
+</div>
+<div class="form-group">
+    <label>Регион</label>
+    <input name="region" list="russian_regions_admin" value="{{ o.region|default:'Россия' }}" required>
+    <datalist id="russian_regions_admin">{% for region in russian_regions %}<option value="{{ region }}">{% endfor %}</datalist>
+</div>
+<div class="form-group">
+    <label>Обложка</label>
+    <input type="file" name="cover_image" accept="image/*">
+</div>
+<div class="form-group wide">
+    <label>Краткое описание</label>
+    <textarea name="short_description" maxlength="320" placeholder="Короткий текст для карточки на главной">{{ o.short_description|default:'' }}</textarea>
+</div>
+<div class="form-group wide">
+    <label>Подробное описание</label>
+    <textarea name="description" placeholder="Полное описание, которое откроется на странице олимпиады">{{ o.description|default:'' }}</textarea>
+</div>

@@ -1,0 +1,14 @@
+<article class="admin-row">
+    <div>
+        <h3>{{ o.public_code }} · {{ o.title }}</h3>
+        <p class="muted">{{ o.get_listing_type_display }} · {{ o.get_stage_display }} · {{ o.region }} · {{ o.start_date }} — {{ o.end_date }}</p>
+        {% if o.organizer %}<p><a href="{{ o.link }}" target="_blank">{{ o.organizer }}</a></p>{% endif %}
+        {% if o.short_description %}<p>{{ o.short_description|truncatechars:160 }}</p>{% elif o.description %}<p>{{ o.description|truncatechars:160 }}</p>{% endif %}
+    </div>
+    <form method="POST" class="row-actions">
+        {% csrf_token %}
+        {% if pending %}<button name="approve_olymp" value="{{ o.id }}" class="btn-sm">Одобрить</button>{% endif %}
+        <a href="?tab=edit&id={{ o.id }}" class="btn secondary btn-sm">Редактировать</a>
+        <button name="delete_olymp" value="{{ o.id }}" class="btn danger btn-sm" onclick="return confirm('Удалить запись?')">Удалить</button>
+    </form>
+</article>

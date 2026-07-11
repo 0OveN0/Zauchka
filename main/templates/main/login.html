@@ -1,0 +1,21 @@
+{% extends "main/base.html" %}
+
+{% block title %}Вход{% endblock %}
+
+{% block content %}
+<section class="auth-layout">
+    <div class="auth-card">
+        <h1>Вход на сайт</h1>
+        {% if ban_error %}<div class="alert"><strong>Доступ заблокирован</strong><br>{{ ban_error }}</div>{% endif %}
+        {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+        <form method="POST" class="auth-form">
+            {% csrf_token %}
+            <input name="username" placeholder="Логин" required>
+            <input name="password" type="password" placeholder="Пароль" required>
+            <button type="submit">Войти</button>
+        </form>
+        <p class="auth-link">Нет аккаунта? <a href="{% url 'register' %}">Зарегистрируйтесь</a></p>
+    </div>
+</section>
+<style>.auth-layout{min-height:calc(100vh - 160px);display:grid;place-items:center}.auth-card{width:min(100%,420px);padding:34px}.auth-card h1{margin:0 0 22px;text-align:center;letter-spacing:-.05em}.auth-form{display:grid;gap:12px}.auth-link{text-align:center;color:var(--app-muted)}</style>
+{% endblock %}

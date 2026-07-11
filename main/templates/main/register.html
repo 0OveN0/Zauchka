@@ -1,0 +1,26 @@
+{% extends "main/base.html" %}
+
+{% block title %}Регистрация{% endblock %}
+
+{% block content %}
+<section class="auth-layout">
+    <div class="auth-card">
+        <h1>Создать аккаунт</h1>
+        {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+        <form method="POST" enctype="multipart/form-data" class="auth-form">
+            {% csrf_token %}
+            <input name="username" placeholder="Логин" required>
+            <input name="email" type="email" placeholder="Почта (необязательно)">
+            <input name="password" type="password" placeholder="Пароль" required>
+            <input name="region" list="russian_regions" placeholder="Ваш регион (необязательно)">
+            <datalist id="russian_regions">{% for region in russian_regions %}<option value="{{ region }}">{% endfor %}</datalist>
+            <input name="photo" type="file" accept="image/*">
+            <label class="check-row"><input type="checkbox" name="pd_agree" required>Я принимаю <a href="{% url 'agreement' %}" target="_blank">Пользовательское соглашение</a></label>
+            <label class="check-row"><input type="checkbox" name="cookies_agree" required>Я соглашаюсь с <a href="{% url 'cookies_policy' %}" target="_blank">политикой cookie</a></label>
+            <button type="submit">Зарегистрироваться</button>
+        </form>
+        <p class="auth-link">Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a></p>
+    </div>
+</section>
+<style>.auth-layout{min-height:calc(100vh - 160px);display:grid;place-items:center}.auth-card{width:min(100%,440px);padding:34px}.auth-card h1{margin:0 0 22px;text-align:center;letter-spacing:-.05em}.auth-form{display:grid;gap:12px}.auth-link{text-align:center;color:var(--app-muted)}</style>
+{% endblock %}

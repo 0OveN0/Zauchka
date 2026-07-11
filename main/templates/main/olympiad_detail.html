@@ -1,0 +1,87 @@
+{% extends "main/base.html" %}
+
+{% block title %}{{ olympiad.title }} — {{ site_name }}{% endblock %}
+
+{% block content %}
+<section class="olymp-detail card">
+    <div class="detail-cover">{% if olympiad.cover_image %}<img src="{{ olympiad.cover_image.url }}" alt="{{ olympiad.title }}">{% else %}<span>{{ olympiad.title }}</span>{% endif %}</div>
+    <div class="detail-main">
+        <a href="{% url 'index' %}" class="btn secondary btn-sm">Назад</a>
+        {% if is_real_admin %}<div class="detail-code">{{ olympiad.public_code }}</div>{% endif %}<h1>{{ olympiad.title }}</h1>
+        <div class="detail-tags"><span>{{ olympiad.get_listing_type_display }}</span><span>{{ olympiad.get_target_audience_display }}</span><span>{{ olympiad.get_stage_display }}</span><span>{{ olympiad.get_format_display }}</span>{% if olympiad.grade %}<span>{{ olympiad.grade }} класс</span>{% endif %}<span>{{ olympiad.region }}</span>{% if olympiad.organizer %}<a href="{{ olympiad.link }}" target="_blank">{{ olympiad.organizer }}</a>{% endif %}</div>
+        <p class="muted">Сроки: {{ olympiad.start_date }} — {{ olympiad.end_date }}</p>
+        {% if olympiad.short_description %}<p class="lead-description">{{ olympiad.short_description }}</p>{% endif %}
+        <p class="description">{{ olympiad.description|default:"Подробное описание пока не добавлено."|linebreaksbr }}</p>
+        <div class="detail-actions"><a href="{{ olympiad.link }}" target="_blank" class="btn">Перейти к регистрации</a>{% if request.user.is_authenticated %}<form method="POST" action="{% url 'toggle_favorite' olympiad.pk %}">{% csrf_token %}<button type="submit" class="favorite-detail minecraft-heart {% if is_favorite %}active{% endif %}" title="Избранное"><span></span>{% if is_favorite %}В избранном{% else %}В избранное{% endif %}</button></form>{% endif %}</div>
+    </div>
+</section>
+
+<section class="panel comments-section">
+    <h2 class="section-title">Комментарии</h2>
+    {% if request.user.is_authenticated and request.user.profile.can_comment %}
+    <form method="POST" action="{% url 'add_comment' olympiad.pk %}" class="comment-form sound-on-submit" id="commentForm">
+        {% csrf_token %}
+        <div class="comment-editor">
+            <div class="editor-toolbar">
+                <button type="button" data-wrap="**">B</button>
+                <button type="button" data-wrap="*"><i>I</i></button>
+                <button type="button" data-wrap="__"><u>U</u></button>
+                <button type="button" data-emoji="🙂">🙂</button>
+                <button type="button" data-emoji="👍">👍</button>
+                <button type="button" data-emoji="🔥">🔥</button>
+                <button type="button" data-emoji="✅">✅</button>
+            </div>
+            <textarea name="text" id="commentText" placeholder="Напишите комментарий" required></textarea>
+        </div>
+        <button type="submit">Отправить</button>
+    </form>
+    {% elif request.user.is_authenticated %}<p class="muted">Администратор временно отключил вам возможность писать комментарии.</p>{% else %}
+    <p class="muted">Чтобы оставить комментарий, <a href="{% url 'login' %}">войдите</a>.</p>
+    {% endif %}
+
+    <div class="comments-list">
+        {% for c in comments %}
+        {% if c.is_deleted %}
+            {% if c.show_delete_notice %}
+            <article class="comment-card deleted-comment">
+                <div class="comment-avatar avatar-wrap"><span>×</span></div>
+                <div class="comment-body"><div class="comment-head"><strong>Комментарий удалён</strong><span>{% if c.deleted_at %}{{ c.deleted_at|date:"d.m.Y H:i" }}{% endif %}</span></div><p>Удалил: {% if c.deleted_by %}{{ c.deleted_by.username }}{% else %}администратор{% endif %}{% if c.delete_reason %}. Причина: {{ c.delete_reason }}{% endif %}</p>{% if is_real_admin %}<form method="POST" action="{% url 'admin_panel' %}?tab=active">{% csrf_token %}<button name="hide_comment_delete_notice" value="{{ c.id }}" class="btn secondary btn-sm">Убрать это окно навсегда</button></form>{% endif %}</div>
+            </article>
+            {% endif %}
+        {% else %}
+        <article class="comment-card" id="comment-{{ c.id }}">
+            <a href="{% url 'profile' c.user.pk %}" class="comment-avatar avatar-wrap">{% if c.user.profile.photo %}<img src="{{ c.user.profile.photo.url }}" alt="{{ c.user.username }}">{% else %}<span>{{ c.user.username|first|upper }}</span>{% endif %}{% if c.user.profile.show_online_status and c.user.profile.is_online %}<i class="online-dot"></i>{% endif %}</a>
+            <div class="comment-body">
+                <div class="comment-head"><a href="{% url 'profile' c.user.pk %}">{{ c.user.username }}</a><span>{{ c.created_at|date:"d.m.Y H:i" }}</span></div>
+                <p>{{ c.html_text }}</p>
+                {% if request.user.is_authenticated %}
+                <button type="button" class="report-btn" data-report-id="{{ c.id }}" title="Пожаловаться">Пожаловаться</button>
+                <div class="report-modal" id="report-{{ c.id }}">
+                    <div class="report-dialog">
+                        <button type="button" class="report-close" data-report-close="{{ c.id }}">×</button>
+                        <h3>Жалоба на комментарий</h3>
+                        <form method="POST" action="{% url 'report_comment' c.id %}" class="sound-on-report">
+                            {% csrf_token %}
+                            <textarea name="report_text" placeholder="Опишите причину жалобы"></textarea>
+                            <button class="btn danger btn-sm">Отправить</button>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </article>
+        {% endif %}
+        {% empty %}<p class="muted">Комментариев пока нет.</p>{% endfor %}
+    </div>
+</section>
+
+<style>
+.olymp-detail{display:grid;grid-template-columns:minmax(260px,.9fr) minmax(0,1.2fr);gap:24px;align-items:stretch;padding:24px}.detail-cover{min-height:320px;border-radius:24px;overflow:hidden;display:grid;place-items:end center;background:linear-gradient(135deg,rgba(34,158,217,.18),rgba(255,255,255,.44));color:#fff;font-size:1.4rem;font-weight:900;text-align:center;padding:18px;position:relative}.detail-cover:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent,rgba(0,0,0,.50))}.detail-cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.detail-cover span{position:relative;z-index:1;text-shadow:0 2px 12px rgba(0,0,0,.45)}.detail-main h1{font-size:clamp(2rem,5vw,3.4rem);line-height:1;letter-spacing:-.07em;margin:18px 0}.detail-code{display:inline-flex;padding:6px 10px;border-radius:999px;background:rgba(34,158,217,.08);color:var(--app-muted);font-weight:900;font-size:.78rem}.detail-tags{display:flex;flex-wrap:wrap;gap:8px}.detail-tags span,.detail-tags a{padding:7px 11px;border-radius:999px;background:rgba(34,158,217,.12);color:var(--app-primary);font-weight:900}.lead-description{font-size:1.06rem;font-weight:800;line-height:1.55;color:var(--app-text)}.description{line-height:1.65}.detail-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.favorite-detail{background:rgba(239,68,68,.08);color:#ef4444;border:1px solid rgba(239,68,68,.24);box-shadow:none}.favorite-detail.active{background:#ef4444;color:#fff}.minecraft-heart span{width:14px;height:14px;background:currentColor;clip-path:polygon(50% 88%,8% 48%,8% 22%,22% 8%,42% 8%,50% 18%,58% 8%,78% 8%,92% 22%,92% 48%);display:inline-block;image-rendering:pixelated}.deleted-comment{opacity:.86}.deleted-comment .comment-avatar{background:rgba(224,36,94,.10);color:var(--app-danger)}.comments-section{margin-top:18px}.comment-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end;margin-bottom:18px}.comment-editor{border:1px solid var(--app-border);border-radius:18px;overflow:hidden;background:rgba(255,255,255,.24)}.editor-toolbar{display:flex;gap:6px;padding:8px;border-bottom:1px solid var(--app-border)}.editor-toolbar button{width:34px;min-height:32px;padding:0;border-radius:10px;background:rgba(255,255,255,.32);color:var(--app-text);box-shadow:none}.comment-editor textarea{border:0;background:transparent;box-shadow:none;min-height:110px}.comments-list{display:grid;gap:12px}.comment-card{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;padding:14px;border:1px solid var(--app-border);border-radius:22px;background:var(--app-card)}.comment-avatar{width:58px;height:58px;border-radius:50%;overflow:visible;background:rgba(34,158,217,.12);font-size:1.6rem;display:grid;place-items:center}.comment-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}.comment-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:var(--app-muted);font-size:.88rem}.comment-head a{font-weight:900}.comment-body p{margin:8px 0;line-height:1.55}.comment-body{position:relative;padding-right:44px}.report-btn{position:absolute;right:0;top:0;min-height:30px;padding:0 10px;border-radius:999px;background:rgba(255,255,255,.22);color:#8b98a5;box-shadow:none;font-weight:900;font-size:.76rem}.report-btn:hover{color:#fff;background:var(--app-danger);transform:none}.report-modal{display:none;position:fixed;inset:0;z-index:100;background:rgba(15,23,42,.42);place-items:center;padding:20px}.report-modal.open{display:grid}.report-dialog{width:min(460px,100%);padding:22px;border-radius:24px;background:var(--app-card);box-shadow:0 28px 80px rgba(0,0,0,.24);position:relative}.report-close{position:absolute;right:12px;top:12px;width:34px;min-height:34px;padding:0;background:rgba(15,23,42,.08);color:var(--app-text);box-shadow:none}.report-dialog form{display:grid;gap:10px}@media(max-width:760px){.olymp-detail{grid-template-columns:1fr}.detail-cover{min-height:220px}.comment-form{grid-template-columns:1fr}}
+</style>
+<script>
+function openReportModal(id){var el=document.getElementById('report-'+id);if(el)el.classList.add('open');}
+function closeReportModal(id){var el=document.getElementById('report-'+id);if(el)el.classList.remove('open');}
+document.addEventListener('click',function(e){var open=e.target.closest('[data-report-id]');if(open){e.preventDefault();openReportModal(open.dataset.reportId);}var close=e.target.closest('[data-report-close]');if(close){e.preventDefault();closeReportModal(close.dataset.reportClose);}if(e.target.classList.contains('report-modal')){e.target.classList.remove('open');}});
+document.addEventListener('click',function(e){var btn=e.target.closest('[data-wrap],[data-emoji]');if(!btn)return;var ta=document.getElementById('commentText');if(!ta)return;ta.focus();var start=ta.selectionStart,end=ta.selectionEnd;var val=ta.value;var selected=val.slice(start,end);if(btn.dataset.emoji){ta.value=val.slice(0,start)+btn.dataset.emoji+val.slice(end);ta.selectionStart=ta.selectionEnd=start+btn.dataset.emoji.length;return;}var w=btn.dataset.wrap;ta.value=val.slice(0,start)+w+selected+w+val.slice(end);ta.selectionStart=start+w.length;ta.selectionEnd=end+w.length;});
+</script>
+{% endblock %}
